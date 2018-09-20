@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -45,6 +46,9 @@ namespace NeuralNetwork {
                 structure.hiddens[i] = int.Parse(reader.ReadLine());
 
             structure.outputs = int.Parse(reader.ReadLine());
+
+            structure.hiddensFunction = (ActivationType) int.Parse(reader.ReadLine());
+            structure.outputsFunction = (ActivationType) int.Parse(reader.ReadLine());
 
             Create(); // создаём матрицы весов, входные и выходные сигналы
 
@@ -135,12 +139,15 @@ namespace NeuralNetwork {
         }
 
         // обучение сети. alpha - скорость обучения, eps - точность обучения, maxEpochs - максимальное число эпох
-        public void Train(Vector[] inputData, Vector[] outputData, double alpha, double eps, long maxEpochs, Log log = null) {
+        public void Train(Vector[] inputData, Vector[] outputData, double alpha, double eps, long maxEpochs, Log log = null, double exp = 1) {
             long epoch = 0;
             double error;
 
+            Stopwatch t = new Stopwatch();
+
             do {    
                 error = 0;
+                t.Restart();
 
                 for (int index = 0; index < inputData.Length; index++) {
                     Vector f = GetOutput(inputData[index]); // получаем выход сети
@@ -164,6 +171,10 @@ namespace NeuralNetwork {
                 error = Math.Sqrt(error);
                 epoch++;
 
+                t.Stop();
+
+                Console.WriteLine("epoch time: {0}", t.ElapsedMilliseconds);
+
                 if (log != null)
                     log(error, epoch);
             } while (error > eps && epoch < maxEpochs); // повторяем пока не достигнем нужной точности или максимального числа эпох
@@ -184,6 +195,9 @@ namespace NeuralNetwork {
                 writer.WriteLine(structure.hiddens[i]);
 
             writer.WriteLine(structure.outputs);
+
+            writer.WriteLine((int) structure.hiddensFunction);
+            writer.WriteLine((int)structure.outputsFunction);
 
             for (int layer = 0; layer < layers.Length; layer++) {
                 for (int i = 0; i < layers[layer].n; i++) {

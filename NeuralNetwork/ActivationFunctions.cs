@@ -66,9 +66,9 @@ namespace NeuralNetwork {
         
         // производная гиперболического тангенса
         public static double TangentDerivative(double x) {
-            double cosh = Math.Cosh(x);
+            double f = Tangent(x);
 
-            return 1 / (cosh * cosh);
+            return 1 - f * f;
         }
 
         // производная выпрямителя
