@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace NeuralNetwork {
@@ -46,14 +43,14 @@ namespace NeuralNetwork {
 
             Vector result = new Vector(m.m);
 
-            for (int i = 0; i < m.m; i++) {
+            Parallel.For(0, m.m, i => {
                 double sum = 0;
 
                 for (int j = 0; j < m.n; j++)
                     sum += m.values[j][i] * v[j];
 
                 result[i] = sum;
-            }
+            });
 
             return result;
         }
@@ -65,14 +62,14 @@ namespace NeuralNetwork {
 
             Vector result = new Vector(m.n);
 
-            for (int i = 0; i < m.n; i++) {
+            Parallel.For(0, m.n, i => {
                 double sum = 0;
 
                 for (int j = 0; j < m.m; j++)
                     sum += m.values[i][j] * v[j];
 
                 result[i] = sum;
-            }
+            });
 
             return result;
         }

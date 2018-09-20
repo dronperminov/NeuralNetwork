@@ -39,8 +39,9 @@ namespace NeuralNetwork {
         public Vector Activate(ActivationType type) {
             Vector activated = new Vector(length);
 
-            for (int i = 0; i < length; i++)
+            Parallel.For(0, length, i => {
                 activated.values[i] = ActivationFunction.Activate(type, values[i]);
+            });
 
             return activated;
         }
@@ -49,8 +50,9 @@ namespace NeuralNetwork {
         public Vector Derivative(ActivationType type) {
             Vector derivative = new Vector(length);
 
-            for (int i = 0; i < length; i++)
+            Parallel.For(0, length, i => {
                 derivative.values[i] = ActivationFunction.Derivative(type, values[i]);
+            });
 
             return derivative;
         }
