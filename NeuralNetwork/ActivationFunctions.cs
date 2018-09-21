@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NeuralNetwork {
     // тип функции активации
@@ -13,10 +9,18 @@ namespace NeuralNetwork {
         nochange
     };
 
-    class ActivationFunction {
+    public delegate double ActivationFunction(double x);
+
+    class ActivationFunctions {
         // Сигмоида. Область значений: (0, 1)
         public static double Sigmoid(double x) {
             return 1.0 / (1 + Math.Exp(-x));
+        }
+
+        // производная сигмоиды
+        public static double SigmoidDerivative(double x) {
+            double f = Sigmoid(x);
+            return f * (1 - f);
         }
 
         // Гиперболический тангенс. Область значений: (-1, 1)
@@ -24,51 +28,19 @@ namespace NeuralNetwork {
             return Math.Tanh(x);
         }
 
+        // производная гиперболического тангенса
+        public static double TangentDerivative(double x) {
+            double f = Tangent(x);
+
+            return 1 - f * f;
+        }
+        
         // Выпрямитель. Область значений: [0, +inf)
         public static double ReLU(double x) {
             if (x < 0)
                 return 0;
 
             return x;
-        }
-
-        // Линейная функция. Область значений: (-inf, +inf)
-        public static double NoChange(double x) {
-            return x;
-        }
-
-        // Активация значения x функцией типа type
-        public static double Activate(ActivationType type, double x) {
-            switch (type) {
-                case ActivationType.sigmoid:
-                    return Sigmoid(x);
-
-                case ActivationType.tanh:
-                    return Tangent(x);
-
-                case ActivationType.relu:
-                    return ReLU(x);
-
-                case ActivationType.nochange:
-                    return NoChange(x);
-            }
-
-            throw new Exception("ActivationFunctions: uncased type!");
-        }
-
-        /*********************************************************/
-
-        // производная сигмоиды
-        public static double SigmoidDerivative(double x) {
-            double f = Sigmoid(x);
-            return f * (1 - f);
-        }
-        
-        // производная гиперболического тангенса
-        public static double TangentDerivative(double x) {
-            double f = Tangent(x);
-
-            return 1 - f * f;
         }
 
         // производная выпрямителя
@@ -79,25 +51,49 @@ namespace NeuralNetwork {
             return 1;
         }
 
+        // Линейная функция. Область значений: (-inf, +inf)
+        public static double NoChange(double x) {
+            return x;
+        }
+
         // производная линейной функции
         public static double NoChangeDerivative(double x) {
             return 1;
         }
-
-        // получение производной функции активации с типом type
-        public static double Derivative(ActivationType type, double x) {
+        
+        // Активация значения x функцией типа type
+        public static ActivationFunction GetFunction(ActivationType type) {
             switch (type) {
                 case ActivationType.sigmoid:
-                    return SigmoidDerivative(x);
+                    return Sigmoid;
 
                 case ActivationType.tanh:
-                    return TangentDerivative(x);
+                    return Tangent;
 
                 case ActivationType.relu:
-                    return ReLUDerivative(x);
+                    return ReLU;
 
                 case ActivationType.nochange:
-                    return NoChangeDerivative(x);
+                    return NoChange;
+            }
+
+            throw new Exception("ActivationFunctions: uncased type!");
+        }
+
+        // получение производной функции активации с типом type
+        public static ActivationFunction GetDerivative(ActivationType type) {
+            switch (type) {
+                case ActivationType.sigmoid:
+                    return SigmoidDerivative;
+
+                case ActivationType.tanh:
+                    return TangentDerivative;
+
+                case ActivationType.relu:
+                    return ReLUDerivative;
+
+                case ActivationType.nochange:
+                    return NoChangeDerivative;
             }
 
             throw new Exception("ActivationFunctions: uncased type!");

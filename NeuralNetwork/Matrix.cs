@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading.Tasks;
 
 namespace NeuralNetwork {
     public class Matrix {
@@ -43,14 +42,14 @@ namespace NeuralNetwork {
 
             Vector result = new Vector(m.m);
 
-            Parallel.For(0, m.m, i => {
+            for (int i = 0; i < m.m; i++) {
                 double sum = 0;
 
                 for (int j = 0; j < m.n; j++)
                     sum += m.values[j][i] * v[j];
 
                 result[i] = sum;
-            });
+            }
 
             return result;
         }
@@ -62,14 +61,14 @@ namespace NeuralNetwork {
 
             Vector result = new Vector(m.n);
 
-            Parallel.For(0, m.n, i => {
+            for (int i = 0; i < m.n; i++) {
                 double sum = 0;
 
                 for (int j = 0; j < m.m; j++)
                     sum += m.values[i][j] * v[j];
 
                 result[i] = sum;
-            });
+            }
 
             return result;
         }

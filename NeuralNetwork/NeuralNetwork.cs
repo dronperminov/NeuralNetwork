@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace NeuralNetwork {
     public struct NeuroStructure {
@@ -10,7 +9,7 @@ namespace NeuralNetwork {
         public int outputs; // число выходных нейронов
 
         public ActivationType hiddensFunction; // тип функции активации в скрытых слоях
-        public ActivationType outputsFunction; // тип функции активации выходного слоя
+        public ActivationType outputFunction; // тип функции активации выходного слоя
     }
 
     public class NeuralNetwork {
@@ -19,6 +18,11 @@ namespace NeuralNetwork {
         Matrix[] layers; // слои (матрицы весов)
         Vector[] inputs; // входные значения слоёв
         Vector[] outputs; // выходные значения слоёв
+
+        ActivationFunction hiddensActivation; // функция активации скрытых слоёв
+        ActivationFunction hiddensDerivative; // Производная функции активации скрытых слоёв
+        ActivationFunction outputActivation; // функция активации выходного слоя
+        ActivationFunction outputDerivative; // Производная функции активации выходного слоя
 
         public delegate void Log(double error, long epoch); // делегат для отслеживания состояния обучения
 
@@ -48,7 +52,7 @@ namespace NeuralNetwork {
             structure.outputs = int.Parse(reader.ReadLine());
 
             structure.hiddensFunction = (ActivationType) int.Parse(reader.ReadLine());
-            structure.outputsFunction = (ActivationType) int.Parse(reader.ReadLine());
+            structure.outputFunction = (ActivationType) int.Parse(reader.ReadLine());
 
             Create(); // создаём матрицы весов, входные и выходные сигналы
 
@@ -90,6 +94,17 @@ namespace NeuralNetwork {
                 layers[i + 1] = new Matrix(structure.hiddens[i + 1], structure.hiddens[i]);
 
             layers[layers.Length - 1] = new Matrix(structure.outputs, structure.hiddens[structure.hiddens.Length - 1]);
+
+            hiddensActivation = ActivationFunctions.GetFunction(structure.hiddensFunction);
+            hiddensDerivative = ActivationFunctions.GetDerivative(structure.hiddensFunction);
+
+            outputActivation = ActivationFunctions.GetFunction(structure.outputFunction);
+            outputDerivative = ActivationFunctions.GetDerivative(structure.outputFunction);
+        }
+
+        // получение структуры нейросети
+        public NeuroStructure GetStructure() {
+            return structure;
         }
 
         // получение выхода сети для вектора input
@@ -99,24 +114,28 @@ namespace NeuralNetwork {
             // распространяем сигнал от начала к концу
             for (int i = 0; i < layers.Length - 1; i++) {
                 outputs[i] = layers[i] * inputs[i];
-                inputs[i + 1] = outputs[i].Activate(structure.hiddensFunction);
+                inputs[i + 1] = outputs[i].Activate(hiddensActivation);
             }
 
             int index = layers.Length - 1;
             outputs[index] = layers[index] * inputs[index];
 
-            return outputs[index].Activate(structure.outputsFunction); // возвращаем активированный вектор
+            return outputs[index].Activate(outputActivation); // возвращаем активированный вектор
         }
 
         // распространение ошибки от последнего к первому слою (f - выход сети, g - требуемый ответ)
-        Vector[] PropagateErrors(Vector f, Vector g) {
+        Vector[] PropagateErrors(Vector f, Vector g, ref double error) {
             Vector[] errors = new Vector[layers.Length];
 
             errors[layers.Length - 1] = new Vector(structure.outputs);
 
             // считаем ошибку выхода сети
-            for (int i = 0; i < structure.outputs; i++)
-                errors[layers.Length - 1][i] = g[i] - f[i];
+            for (int i = 0; i < structure.outputs; i++) {
+                double e = g[i] - f[i]; // компонента ошибки
+                errors[layers.Length - 1][i] = e;
+
+                error += e * e; // добавляем квадрат ошибки к общей ошибке
+            }
 
             // распространяем ошибку выше
             for (int i = layers.Length - 2; i >= 0; i--)
@@ -129,21 +148,37 @@ namespace NeuralNetwork {
         Vector[] GetGradients() {
             Vector[] gradients = new Vector[layers.Length];
 
-            Parallel.For(0, layers.Length - 1, i => {
-                gradients[i] = outputs[i].Derivative(structure.hiddensFunction);
-            });
-
-            gradients[layers.Length - 1] = outputs[layers.Length - 1].Derivative(structure.outputsFunction);
+            for(int i = 0; i < layers.Length - 1; i++)
+                gradients[i] = outputs[i].Derivative(hiddensDerivative);
+            
+            gradients[layers.Length - 1] = outputs[layers.Length - 1].Derivative(outputDerivative);
 
             return gradients; // возвращаем вычисленные градиенты
         }
 
+        void DropOut(double p) {
+            Random random = new Random(DateTime.Now.Millisecond);
+
+            for (int layer = 0; layer < layers.Length - 1; layer++) {
+                for (int i = 0; i < layers[layer].n; i++) {
+                    if (random.NextDouble() < p) {
+                        for (int j = 0; j < layers[layer].m; j++) {
+                            layers[layer][i, j] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
         // обучение сети. alpha - скорость обучения, eps - точность обучения, maxEpochs - максимальное число эпох
-        public void Train(Vector[] inputData, Vector[] outputData, double alpha, double eps, long maxEpochs, Log log = null, double exp = 1) {
+        public void Train(Vector[] inputData, Vector[] outputData, double alpha, double eps, double dropOut, long maxEpochs, Log log = null) {
             long epoch = 0;
             double error;
 
             Stopwatch t = new Stopwatch();
+
+            if (dropOut > 0)
+                DropOut(dropOut);
 
             do {    
                 error = 0;
@@ -153,10 +188,8 @@ namespace NeuralNetwork {
                     Vector f = GetOutput(inputData[index]); // получаем выход сети
                     Vector g = outputData[index];
 
-                    Vector[] errors = PropagateErrors(f, g); // считаем и распространяем ошибку
+                    Vector[] errors = PropagateErrors(f, g, ref error); // считаем и распространяем ошибку
                     Vector[] gradients = GetGradients(); // получаем градиенты
-
-                    error += errors[errors.Length - 1].GetNorm(); // считаем ошибку обучения
 
                     // изменяем веса в каждом слое
                     for (int layer = 0; layer < layers.Length; layer++) {
@@ -197,7 +230,7 @@ namespace NeuralNetwork {
             writer.WriteLine(structure.outputs);
 
             writer.WriteLine((int) structure.hiddensFunction);
-            writer.WriteLine((int)structure.outputsFunction);
+            writer.WriteLine((int)structure.outputFunction);
 
             for (int layer = 0; layer < layers.Length; layer++) {
                 for (int i = 0; i < layers[layer].n; i++) {

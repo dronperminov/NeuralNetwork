@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NeuralNetwork {
     public class Vector {
@@ -35,36 +31,24 @@ namespace NeuralNetwork {
             set { values[i] = value; }
         }
 
-        // активация матрицы функцией типа type
-        public Vector Activate(ActivationType type) {
+        // активация матрицы функцией f
+        public Vector Activate(ActivationFunction f) {
             Vector activated = new Vector(length);
 
-            Parallel.For(0, length, i => {
-                activated.values[i] = ActivationFunction.Activate(type, values[i]);
-            });
+            for (int i = 0; i < length; i++)
+                activated.values[i] = f(values[i]);
 
             return activated;
         }
 
-        // получение вектора из производных функции type
-        public Vector Derivative(ActivationType type) {
+        // получение вектора из производных функции df
+        public Vector Derivative(ActivationFunction df) {
             Vector derivative = new Vector(length);
 
-            Parallel.For(0, length, i => {
-                derivative.values[i] = ActivationFunction.Derivative(type, values[i]);
-            });
+            for(int i = 0; i < length; i++)
+                derivative.values[i] = df(values[i]);
 
             return derivative;
-        }
-
-        // получение квадрата нормы в Евклидовом пространстве
-        public double GetNorm() {
-            double norm = 0;
-
-            for (int i = 0; i < length; i++)
-                norm += values[i] * values[i];
-
-            return norm;
         }
 
         // вывод вектора в консоль
