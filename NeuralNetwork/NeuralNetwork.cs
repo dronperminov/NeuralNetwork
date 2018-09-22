@@ -10,6 +10,18 @@ namespace NeuralNetwork {
 
         public ActivationType hiddensFunction; // тип функции активации в скрытых слоях
         public ActivationType outputFunction; // тип функции активации выходного слоя
+
+        public string name; // имя сети
+    }
+
+    public struct TrainParameters {
+        public double learningRate; // скорость обучения
+        public double accuracy; // точность обучения
+        public double dropOut; // доля исключаемых нейронов
+        public long maxEpochs; // максимальное число эпох обучения
+        public bool printTime; // печатать ли время эпохи
+
+        public int autoSavePeriod; // интервал автосохранения сети в файл (0 - не сохранять)
     }
 
     public class NeuralNetwork {
@@ -33,7 +45,7 @@ namespace NeuralNetwork {
 
             // заполняем матрицу маленькими случайными числами
             for (int i = 0; i < layers.Length - 1; i++)
-                layers[i].SetRandom();
+                layers[i].SetRandom(0, Math.Sqrt(2.0 / layers[i].m));
         }
 
         // создание нейросети из файла, расположенного в path
@@ -53,6 +65,13 @@ namespace NeuralNetwork {
 
             structure.hiddensFunction = (ActivationType) int.Parse(reader.ReadLine());
             structure.outputFunction = (ActivationType) int.Parse(reader.ReadLine());
+
+            int index = path.LastIndexOf("\\");
+
+            if (index == -1)
+                index = 0;
+
+            structure.name = path.Substring(index).Replace(".", "_");
 
             Create(); // создаём матрицы весов, входные и выходные сигналы
 
@@ -170,15 +189,75 @@ namespace NeuralNetwork {
             }
         }
 
-        // обучение сети. alpha - скорость обучения, eps - точность обучения, maxEpochs - максимальное число эпох
-        public void Train(Vector[] inputData, Vector[] outputData, double alpha, double eps, double dropOut, long maxEpochs, Log log = null) {
+        // обучение сети методом обратного распространения ошибки с моментом
+        public void TrainMoment(Vector[] inputData, Vector[] outputData, TrainParameters parameters, double moment, Log log = null) {
             long epoch = 0;
             double error;
 
+            if (parameters.dropOut > 0)
+                DropOut(parameters.dropOut);
+
+            Matrix[] dw = new Matrix[layers.Length];
+
+            for (int layer = 0; layer < layers.Length; layer++)
+                dw[layer] = new Matrix(layers[layer].n, layers[layer].m);
+
             Stopwatch t = new Stopwatch();
 
-            if (dropOut > 0)
-                DropOut(dropOut);
+            do {
+                error = 0;
+                t.Restart();
+
+                for (int index = 0; index < inputData.Length; index++) {
+                    Vector f = GetOutput(inputData[index]); // получаем выход сети
+                    Vector g = outputData[index];
+
+                    Vector[] errors = PropagateErrors(f, g, ref error); // считаем и распространяем ошибку
+                    Vector[] gradients = GetGradients(); // получаем градиенты
+
+                    // изменяем веса в каждом слое
+                    for (int layer = 0; layer < layers.Length; layer++) {
+                        double exp = Math.Exp(layer / 2);
+
+                        for (int i = 0; i < layers[layer].n; i++) {
+                            for (int j = 0; j < layers[layer].m; j++) {
+                                double deltaW = errors[layer][i] * gradients[layer][i] * inputs[layer][j];
+
+                                layers[layer][i, j] += parameters.learningRate * deltaW + moment * dw[layer][i, j];
+                                dw[layer][i, j] = deltaW;
+                            }
+                        }
+                    }
+                }
+
+                error = Math.Sqrt(error);
+                epoch++;
+
+                t.Stop();
+
+                if (parameters.printTime)
+                    Console.WriteLine("epoch time: {0}", t.ElapsedMilliseconds);
+
+                if (log != null)
+                    log(error, epoch);
+
+                if (epoch % parameters.autoSavePeriod == 0)
+                    Save(structure.name + "_" + epoch + "_" + error + ".txt");
+            } while (error > parameters.accuracy && epoch < parameters.maxEpochs); // повторяем пока не достигнем нужной точности или максимального числа эпох
+
+            if (epoch == parameters.maxEpochs)
+                Console.WriteLine("Warning! Max epoch reached!");
+        }
+
+        // обучение сети методом обратного распространения ошибки
+        public void Train(Vector[] inputData, Vector[] outputData, TrainParameters parameters, Log log = null) {
+            long epoch = 0;
+            double error;
+
+            if (parameters.dropOut > 0)
+                DropOut(parameters.dropOut);
+
+            Stopwatch t = new Stopwatch();
 
             do {    
                 error = 0;
@@ -195,7 +274,7 @@ namespace NeuralNetwork {
                     for (int layer = 0; layer < layers.Length; layer++) {
                         for (int i = 0; i < layers[layer].n; i++) {
                             for (int j = 0; j < layers[layer].m; j++) {
-                                layers[layer][i, j] += alpha * errors[layer][i] * gradients[layer][i] * inputs[layer][j];
+                                layers[layer][i, j] += parameters.learningRate * errors[layer][i] * gradients[layer][i] * inputs[layer][j];
                             }
                         }
                     }
@@ -206,13 +285,17 @@ namespace NeuralNetwork {
 
                 t.Stop();
 
-                Console.WriteLine("epoch time: {0}", t.ElapsedMilliseconds);
+                if (parameters.printTime)
+                    Console.WriteLine("epoch time: {0}", t.ElapsedMilliseconds);
 
                 if (log != null)
                     log(error, epoch);
-            } while (error > eps && epoch < maxEpochs); // повторяем пока не достигнем нужной точности или максимального числа эпох
 
-            if (epoch == maxEpochs)
+                if (epoch % parameters.autoSavePeriod == 0)
+                    Save(structure.name + "_" + epoch + "_" + error + ".txt");
+            } while (error > parameters.accuracy && epoch < parameters.maxEpochs); // повторяем пока не достигнем нужной точности или максимального числа эпох
+
+            if (epoch == parameters.maxEpochs)
                 Console.WriteLine("Warning! Max epoch reached!");
         }
 
