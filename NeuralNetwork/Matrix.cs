@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace NeuralNetwork {
-    public class Matrix {
+    public struct Matrix {
         public readonly int n; // число строк
         public readonly int m; // число столбцов
 
@@ -41,15 +42,15 @@ namespace NeuralNetwork {
                 throw new Exception("Matrix: try multiply transpose matrix with rows1 != rows2");
 
             Vector result = new Vector(m.m);
-
-            for (int i = 0; i < m.m; i++) {
+            
+            Parallel.For(0, m.m, i => {
                 double sum = 0;
 
                 for (int j = 0; j < m.n; j++)
-                    sum += m.values[j][i] * v[j];
+                    sum += m.values[j][i] * v.values[j];
 
-                result[i] = sum;
-            }
+                result.values[i] = sum;
+            });
 
             return result;
         }
@@ -60,15 +61,15 @@ namespace NeuralNetwork {
                 throw new Exception("Matrix: try multiply matrix to vector with different sizes");
 
             Vector result = new Vector(m.n);
-
-            for (int i = 0; i < m.n; i++) {
+            
+            Parallel.For(0, m.n, i => {
                 double sum = 0;
 
                 for (int j = 0; j < m.m; j++)
-                    sum += m.values[i][j] * v[j];
+                    sum += m.values[i][j] * v.values[j];
 
-                result[i] = sum;
-            }
+                result.values[i] = sum;
+            });
 
             return result;
         }

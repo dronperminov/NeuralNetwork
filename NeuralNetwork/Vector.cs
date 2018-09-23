@@ -1,9 +1,9 @@
 ﻿using System;
 
 namespace NeuralNetwork {
-    public class Vector {
+    public struct Vector {
         int length; // длина вектора
-        double[] values; // значения вектора
+        public readonly double[] values; // значения вектора
 
         public Vector(int n) {
             length = n;

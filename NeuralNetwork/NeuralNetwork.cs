@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace NeuralNetwork {
     public struct NeuroStructure {
@@ -63,8 +64,8 @@ namespace NeuralNetwork {
 
             structure.outputs = int.Parse(reader.ReadLine());
 
-            structure.hiddensFunction = (ActivationType) int.Parse(reader.ReadLine());
-            structure.outputFunction = (ActivationType) int.Parse(reader.ReadLine());
+            structure.hiddensFunction = (ActivationType)int.Parse(reader.ReadLine());
+            structure.outputFunction = (ActivationType)int.Parse(reader.ReadLine());
 
             int index = path.LastIndexOf("\\");
 
@@ -129,7 +130,7 @@ namespace NeuralNetwork {
         // получение выхода сети для вектора input
         public Vector GetOutput(Vector input) {
             inputs[0] = input;
-            
+
             // распространяем сигнал от начала к концу
             for (int i = 0; i < layers.Length - 1; i++) {
                 outputs[i] = layers[i] * inputs[i];
@@ -167,9 +168,9 @@ namespace NeuralNetwork {
         Vector[] GetGradients() {
             Vector[] gradients = new Vector[layers.Length];
 
-            for(int i = 0; i < layers.Length - 1; i++)
+            for (int i = 0; i < layers.Length - 1; i++)
                 gradients[i] = outputs[i].Derivative(hiddensDerivative);
-            
+
             gradients[layers.Length - 1] = outputs[layers.Length - 1].Derivative(outputDerivative);
 
             return gradients; // возвращаем вычисленные градиенты
@@ -220,10 +221,12 @@ namespace NeuralNetwork {
                         double exp = Math.Exp(layer / 2);
 
                         for (int i = 0; i < layers[layer].n; i++) {
-                            for (int j = 0; j < layers[layer].m; j++) {
-                                double deltaW = errors[layer][i] * gradients[layer][i] * inputs[layer][j];
+                            double delta = parameters.learningRate * errors[layer][i] * gradients[layer][i];
 
-                                layers[layer][i, j] += parameters.learningRate * deltaW + moment * dw[layer][i, j];
+                            for (int j = 0; j < layers[layer].m; j++) {
+                                double deltaW = delta * inputs[layer][j];
+
+                                layers[layer][i, j] += deltaW + moment * dw[layer][i, j];
                                 dw[layer][i, j] = deltaW;
                             }
                         }
@@ -259,7 +262,7 @@ namespace NeuralNetwork {
 
             Stopwatch t = new Stopwatch();
 
-            do {    
+            do {
                 error = 0;
                 t.Restart();
 
@@ -272,11 +275,13 @@ namespace NeuralNetwork {
 
                     // изменяем веса в каждом слое
                     for (int layer = 0; layer < layers.Length; layer++) {
-                        for (int i = 0; i < layers[layer].n; i++) {
-                            for (int j = 0; j < layers[layer].m; j++) {
-                                layers[layer][i, j] += parameters.learningRate * errors[layer][i] * gradients[layer][i] * inputs[layer][j];
+                        Parallel.For(0, layers[layer].n, i => {
+                            double delta = parameters.learningRate * errors[layer][i] * gradients[layer][i];
+
+                            for (int j = 0; j < layers[layer].m; j++) {                            
+                                layers[layer][i, j] += delta * inputs[layer][j];
                             }
-                        }
+                        });
                     }
                 }
 
@@ -312,7 +317,7 @@ namespace NeuralNetwork {
 
             writer.WriteLine(structure.outputs);
 
-            writer.WriteLine((int) structure.hiddensFunction);
+            writer.WriteLine((int)structure.hiddensFunction);
             writer.WriteLine((int)structure.outputFunction);
 
             for (int layer = 0; layer < layers.Length; layer++) {
